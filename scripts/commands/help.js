@@ -42,6 +42,7 @@ module.exports.run = async function ({ api, event, args }) {
 
   let msg = `Hey ${userName}, these are commands that may help your assignments and essays:\n`;
 
+  // Loop through categories and add commands
   for (const categoryName of categories) {
     const categoryNameSansBold = categoryName.split("").map(c => mathSansBold[c] || c).join("");
     msg += `╭─❍「 ${categoryNameSansBold} 」\n`;
@@ -49,14 +50,17 @@ module.exports.run = async function ({ api, event, args }) {
     msg += "\n╰───────────⟡\n";
   }
 
+  // Adding total commands and prefix info
   msg += `├─────☾⋆\n│ » Total commands: [ ${commands.size} ]\n│「 ☾⋆ PREFIX: ${global.config.PREFIX} 」\n╰──────────⧕\n\n`;
 
-  // Adding YOUR UID and profile link to the message
+  // Add bot owner information at the bottom of the command list with bold formatting
   const yourUID = '61559999326713';  // Set your UID here
-  msg += `Owner: Jaylord La Peña\nProfile: https://www.facebook.com/${yourUID}\nUID: ${yourUID}`;
+  const botOwnerBold = "𝗝𝗮𝘆𝗹𝗼𝗿𝗱 𝗟𝗮 𝗣𝗲ñ𝗮"; // Bold formatting for bot owner's name
+  msg += `\nBot Owner: ${botOwnerBold}`;
 
-  // Share YOUR profile using your UID
-  api.shareContact(yourUID, event.senderID, event.threadID);
+  // Send the message with the command list and bot owner info
+  api.sendMessage(msg, threadID, messageID);
 
-  return api.sendMessage(msg, threadID, messageID);
+  // Share the bot owner profile after the message
+  return api.shareContact(yourUID, event.senderID, threadID);
 };
