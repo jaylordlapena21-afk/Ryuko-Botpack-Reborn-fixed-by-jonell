@@ -1,112 +1,236 @@
-module.exports = function ({ api, models, Users, Threads, Currencies }) {
-  const stringSimilarity = require('string-similarity');
-  const logger = require("../../catalogs/ryukoc.js");
+module.exports = function({ api, models, Users, Threads, Currencies }) {
+  const stringSimilarity = require('string-similarity'),
+    escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    logger = require("../../catalogs/ryukoc.js");
+  const axios = require('axios')
   const moment = require("moment-timezone");
-
-  return async function ({ event }) {
-    const { body, senderID, threadID, messageID } = event;
-    const { allowInbox, adminOnly } = global.ryuko;
-    const { PREFIX, ADMINBOT, OPERATOR, approval } = global.config;
-    const { APPROVED } = global.approved;
-    const { userBanned, threadBanned } = global.data;
-    const { commands, cooldowns } = global.client;
-    const dateNow = Date.now();
+  return async function({ event }) {
+    const dateNow = Date.now()
     const time = moment.tz("Asia/Manila").format("HH:MM:ss DD/MM/YYYY");
-
-    const threadSetting = global.data.threadData.get(threadID) || {};
+    const { allowInbox, adminOnly, keyAdminOnly } = global.ryuko;
+    const { PREFIX, ADMINBOT, developermode, OPERATOR, approval } = global.config;
+    const { APPROVED } = global.approved;
+    const { userBanned, threadBanned, threadInfo, threadData, commandBanned } = global.data;
+    const { commands, cooldowns } = global.client;
+    var { body, senderID, threadID, messageID } = event;
+    var senderID = String(senderID),
+      threadID = String(threadID);
+    const threadSetting = threadData.get(threadID) || {}
     const args = (body || '').trim().split(/ +/);
     const commandName = args.shift()?.toLowerCase();
-    const command = commands.get(commandName);
-
-    const notApproved = `𝗔𝗽𝗽𝗿𝗼𝘃𝗮𝗹 𝗧𝗵𝗿𝗲𝗮𝗱\n${global.line}\nThis box is not approved.\nuse "${PREFIX}request" to send a approval request from bot operators`;
+    var command = commands.get(commandName);
     const replyAD = 'mode - only bot admin can use bot';
-
-    // Check if the command starts with prefix
-    if (body && body.startsWith(PREFIX)) {
-      // Check if the thread is approved
-      if (approval && !APPROVED.includes(threadID)) {
-        return sendNotApprovedMessage();
-      }
-
-      // Handle approval request
-      if (body.startsWith(`${PREFIX}request`) && approval) {
-        return handleApprovalRequest();
-      }
-
-      // Check if the user is banned
-      if (userBanned.has(senderID) || threadBanned.has(threadID)) {
-        return handleBan(senderID, threadID);
-      }
-
-      // Check if adminOnly command is used by non-admin
-      if (adminOnly && !ADMINBOT.includes(senderID) && !OPERATOR.includes(senderID)) {
-        return api.sendMessage(replyAD, threadID, messageID);
-      }
-
-      // Handle the command execution if not banned
-      if (command) {
-        return handleCommandExecution();
-      }
-    }
-
-    // Handle command cooldown
-    if (cooldowns.has(command.config.name)) {
-      return handleCooldown();
-    }
-
-    // General Error Logging
-    try {
-      // Add the rest of the logic for handling commands, permissions, etc.
-    } catch (error) {
-      logger(`Error executing command ${commandName}: ${error}`, 'error');
-    }
-
-    // Helper function to send not-approved message
-    function sendNotApprovedMessage() {
-      return api.sendMessage(notApproved, threadID, messageID, async (err, info) => {
-        if (err) logger(`Error sending not approved message: ${err}`, 'error');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return api.unsendMessage(info.messageID);
-      });
-    }
-
-    // Handle approval request logic
-    async function handleApprovalRequest() {
+    const notApproved = `𝗔𝗽𝗽𝗿𝗼𝘃𝗮𝗹 𝗧𝗵𝗿𝗲𝗮𝗱\n${global.line}\nThis box is not approved.\nuse "${PREFIX}request" to send a approval request from bot operators`;
+    if (typeof body === "string" && body.startsWith(`${PREFIX}request`) && approval) {
       if (APPROVED.includes(threadID)) {
-        return api.sendMessage(`✅ Already Approved\n${global.line}\nThis box is already approved`, threadID, messageID);
+        return api.sendMessage(`✅ 𝗔𝗹𝗿𝗲𝗮𝗱𝘆 𝗔𝗽𝗽𝗿𝗼𝘃𝗲𝗱\n${global.line}\nThis box is already approved`, threadID, messageID)
       }
-
+      let ryukodev;
       let request;
       try {
         const groupname = await global.data.threadInfo.get(threadID).threadName || "Name does not exist";
-        request = `🪧 Group Chat Request\n${global.line}\n${groupname} is requesting approval`;
+        ryukodev = `Group name : ${groupname}\nGroup id : ${threadID}`;
+        request = `🪧 𝗚𝗿𝗼𝘂𝗽 𝗖𝗵𝗮𝘁 𝗥𝗲𝗾𝘂𝗲𝘀𝘁\n${global.line}\n${groupname} Group is requesting for approval`
       } catch (error) {
-        request = `❓ Bot User Request\n${global.line}\nBot user is requesting approval`;
+        const username = await Users.getNameUser(threadID) || "facebook user";
+        ryukodev = `User id : ${threadID}`;
+        request = `❓ 𝗕𝗼𝘁 𝗨𝘀𝗲𝗿 𝗥𝗲𝗾𝘂𝗲𝘀𝘁\n${global.line}\n${username} Bot user is requesting for approval\ntype approve box [ threadID ] to Approve That Group Chat or Use approve remove [ threadID ] to Decline that Group Chat`;
       }
-
-      return api.sendMessage(`${request}`, OPERATOR[0], () => {
-        return api.sendMessage(`📬 Your approval request has been sent from bot operator`, threadID, messageID);
+      return api.sendMessage(`${request}\n\n${ryukodev}`, OPERATOR[0], () => {
+        return api.sendMessage(`📬 𝗥𝗲𝗾𝘂𝗲𝘀𝘁 𝗔𝗽𝗽𝗿𝗼𝘃𝗮𝗹\n${global.line}\nYour approval request has been sent from bot operator`, threadID, messageID);
       });
     }
-
-    // Handle banned users and threads
-    function handleBan(senderID, threadID) {
-      const banMessage = userBanned.has(senderID) ? `User is banned` : `Thread is banned`;
-      return api.sendMessage(banMessage, threadID, messageID);
+    if (command && (command.config.name.toLowerCase() === commandName.toLowerCase()) &&(!APPROVED.includes(threadID) && !OPERATOR.includes(senderID) && !ADMINBOT.includes(senderID) && approval)) {
+      return api.sendMessage(notApproved, threadID, async (err, info) => {
+            await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+            return api.unsendMessage(info.messageID);
+          });
+    }
+    if (typeof body === 'string' && body.startsWith(PREFIX) && (!APPROVED.includes(threadID) && !OPERATOR.includes(senderID) && !ADMINBOT.includes(senderID) && approval)) {
+      return api.sendMessage(notApproved, threadID, async (err, info) => {
+            await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+            return api.unsendMessage(info.messageID);
+          });
+    }
+    if (command && (command.config.name.toLowerCase() === commandName.toLowerCase()) && (!ADMINBOT.includes(senderID) && !OPERATOR.includes(senderID) && adminOnly && senderID !== api.getCurrentUserID())) {
+      return api.sendMessage(replyAD, threadID, messageID);
+    }
+    if (typeof body === 'string' && body.startsWith(PREFIX) && (!ADMINBOT.includes(senderID) && adminOnly && senderID !== api.getCurrentUserID())) {
+      return api.sendMessage(replyAD, threadID, messageID);
     }
 
-    // Handle command execution logic
-    function handleCommandExecution() {
-      // Additional command handling logic here
-    }
 
-    // Handle cooldown logic
-    function handleCooldown() {
-      const expirationTime = 5000;  // Example cooldown time in ms
-      if (dateNow < cooldowns.get(senderID) + expirationTime) {
-        return api.sendMessage(`⏱️ Please wait before trying again`, threadID, messageID);
+    if (userBanned.has(senderID) || threadBanned.has(threadID) || allowInbox == ![] && senderID == threadID) {
+      if (!ADMINBOT.includes(senderID.toString()) && !OPERATOR.includes(senderID.toString()))
+      {
+        if (command && (command.config.name.toLowerCase() === commandName.toLowerCase()) && userBanned.has(senderID)) {
+          const { reason, dateAdded } = userBanned.get(senderID) || {};
+          return api.sendMessage(`⛔ 𝗕𝗮𝗻𝗻𝗲𝗱 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁\n${global.line}\nYou're unable to use bot\nreason : ${reason}\ndate banned : ${dateAdded}`, threadID, async (err, info) => {
+            await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+            return api.unsendMessage(info.messageID);
+          }, messageID);
+        } else {
+          if (command && (command.config.name.toLowerCase() === commandName.toLowerCase()) && threadBanned.has(threadID)) {
+            const { reason, dateAdded } = threadBanned.get(threadID) || {};
+            return api.sendMessage(global.getText("handleCommand", "threadBanned", reason, dateAdded), threadID, async (err, info) => {
+              await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+              return api.unsendMessage(info.messageID);
+            }, messageID);
+          }
+        } 
+        if (typeof body === 'string' && body.startsWith(PREFIX) && userBanned.has(senderID)) {
+          const { reason, dateAdded } = userBanned.get(senderID) || {};
+          return api.sendMessage(`⛔ 𝗕𝗮𝗻𝗻𝗲𝗱 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁\n${global.line}\nYou're unable to use bot\nreason : ${reason}\ndate banned : ${dateAdded}`, threadID, async (err, info) => {
+            await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+            return api.unsendMessage(info.messageID);
+          }, messageID);
+        } else {
+          if (typeof body === 'string' && body.startsWith(PREFIX) && threadBanned.has(threadID)) {
+            const { reason, dateAdded } = threadBanned.get(threadID) || {};
+            return api.sendMessage(global.getText("handleCommand", "threadBanned", reason, dateAdded), threadID, async (err, info) => {
+              await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+              return api.unsendMessage(info.messageID);
+            }, messageID);
+          }
+        }
+
       }
-      cooldowns.set(senderID, dateNow);
+    }
+
+    if (commandName.startsWith(PREFIX)) {
+      if (!command) {
+        const allCommandName = Array.from(commands.keys());
+        const checker = stringSimilarity.findBestMatch(commandName, allCommandName);
+        if (checker.bestMatch.rating >= 0.5) {
+          command = commands.get(checker.bestMatch.target);
+        } else {
+          return api.sendMessage(global.getText("handleCommand", "commandNotExist", checker.bestMatch.target), threadID, messageID);
+        }
+      }
+    }
+    if (commandBanned.get(threadID) || commandBanned.get(senderID)) {
+      if (!ADMINBOT.includes(senderID) && !OPERATOR.includes(senderID)) {
+        const banThreads = commandBanned.get(threadID) || [],
+          banUsers = commandBanned.get(senderID) || [];
+        if (banThreads.includes(command.config.name))
+          return api.sendMessage(global.getText("handleCommand", "commandThreadBanned", command.config.name), threadID, async (err, info) => {
+            await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+            return api.unsendMessage(info.messageID);
+          }, messageID);
+        if (banUsers.includes(command.config.name))
+          return api.sendMessage(global.getText("handleCommand", "commandUserBanned", command.config.name), threadID, async (err, info) => {
+            await new Promise(resolve => setTimeout(resolve, 5 * 1000));
+            return api.unsendMessage(info.messageID);
+          }, messageID);
+      }
+    }
+    const premium = global.config.premium;
+    const premiumlists = global.premium.PREMIUMUSERS;
+    if (premium) {
+      if (command && command.config) {
+        if (command.config.premium && !premiumlists.includes(senderID)) {
+          return api.sendMessage(`the command you used is only for premium users. If you want to use it, you can contact the admins and operators of the bot or you can type ${PREFIX}requestpremium.`, event.threadID, async (err, eventt) => {
+            if (err) {
+              return;
+            }
+              await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+              return api.unsendMessage(eventt.messageID);
+          }, event.messageID);
+        }
+      }
+    }
+
+    if (command && command.config) {
+      if (command.config.prefix === false && commandName.toLowerCase() !== command.config.name.toLowerCase()) {
+        api.sendMessage(global.getText("handleCommand", "notMatched", command.config.name), event.threadID, event.messageID);
+        return;
+      }
+      if (command.config.prefix === true && !body.startsWith(PREFIX)) {
+        return;
+      }
+    }
+    if (command && command.config) {
+      if (typeof command.config.prefix === 'undefined') {
+        api.sendMessage(global.getText("handleCommand", "noPrefix", command.config.name), event.threadID, event.messageID);
+        return;
+      }
+    }
+
+
+    if (command && command.config && command.config.category && command.config.category.toLowerCase() === 'nsfw' && !global.data.threadAllowNSFW.includes(threadID) && !ADMINBOT.includes(senderID))
+      return api.sendMessage(global.getText("handleCommand", "threadNotAllowNSFW"), threadID, async (err, info) => {
+        await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+        return api.unsendMessage(info.messageID);
+      }, messageID);
+    var threadInfo2;
+    if (event.isGroup == !![])
+      try {
+        threadInfo2 = (threadInfo.get(threadID) || await Threads.getInfo(threadID))
+        if (Object.keys(threadInfo2).length == 0) throw new Error();
+      } catch (err) {
+        logger(global.getText("handleCommand", "cantGetInfoThread", "error"));
+      }
+    var permssion = 0;
+    var threadInfoo = (threadInfo.get(threadID) || await Threads.getInfo(threadID));
+    const Find = threadInfoo.adminIDs.find(el => el.id == senderID);
+    const ryuko = '!OPERATOR.includes(senderID)';
+    if (OPERATOR.includes(senderID.toString())) permssion = 3;
+    else if (ADMINBOT.includes(senderID.toString())) permssion = 2;
+    else if (!ADMINBOT.includes(senderID) && ryuko && Find) permssion = 1;
+    if (command && command.config && command.config.permission && command.config.permission > permssion) {
+      return api.sendMessage(global.getText("handleCommand", "permissionNotEnough", command.config.name), event.threadID, event.messageID);
+    }
+commands[commandName] || Object.values(commands).find(cmd => command.config.nickName && command.config.nickName.includes(commandName));
+
+                                         if (command && command.config && !client.cooldowns.has(command.config.name)) {
+                                           client.cooldowns.set(command.config.name, new Map()); 
+                                         }
+
+                                         const timestamps = command && command.config ? client.cooldowns.get(command.config.name) : undefined;
+
+                                         const expirationTime = (command && command.config && command.config.cooldowns || 1) * 1000;
+
+                                         if (timestamps && timestamps instanceof Map && timestamps.has(senderID) && dateNow < timestamps.get(senderID) + expirationTime)
+
+                                           return api.sendMessage(`⏱️ | The command you use "${command.config.name}" has been cooldown just wait in ${command.config.cooldowns} seconds`, event.threadID, event.messageID);
+                            
+    var getText2;
+    if (command && command.languages && typeof command.languages === 'object' && command.languages.hasOwnProperty(global.config.language))
+
+      getText2 = (...values) => {
+        var lang = command.languages[global.config.language][values[0]] || '';
+        for (var i = values.length; i > 0x2533 + 0x1105 + -0x3638; i--) {
+          const expReg = RegExp('%' + i, 'g');
+          lang = lang.replace(expReg, values[i]);
+        }
+        return lang;
+      };
+    else getText2 = () => { };
+    try {
+      const Obj = {
+        api: api,
+        event: event,
+        args: args,
+        models: models,
+        Users: Users,
+        Threads: Threads,
+        Currencies: Currencies,
+        permssion: permssion,
+        getText: getText2
+      };
+
+      if (command && typeof command.run === 'function') {
+        command.run(Obj);
+        timestamps.set(senderID, dateNow);
+
+        if (developermode == !![]) {
+          logger(global.getText("handleCommand", "executeCommand", time, commandName, senderID, threadID, args.join(" "), (Date.now()) - dateNow) + '\n', "command");
+        }
+
+        return;
+      }
+    } catch (e) {
+      return api.sendMessage(global.getText("handleCommand", "commandError", commandName, e), threadID);
     }
   };
 };
