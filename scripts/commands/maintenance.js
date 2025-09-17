@@ -23,7 +23,7 @@ module.exports.run = function({ api, event }) {
             if(thread.isGroup == true && thread.threadID != event.threadID) {
                 var link = "https://i.postimg.cc/NFdDc0vV/RFq-BU56n-ES.gif";  
                 var callback = () => api.sendMessage({ 
-                    body: `${global.config.BOTNAME} BOT is has been maintenance. Please be patient.\n\nDeveloper:Jonell Magallanes`, 
+                    body: `${global.config.BOTNAME} BOT is has been maintenance. Please be patient.\n\nDeveloper:Jaylord La Peña`, 
                     attachment: fs.createReadStream(__dirname + "/cache/maintenance.gif")
                 }, 
                 thread.threadID, 
