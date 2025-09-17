@@ -4,26 +4,29 @@ module.exports = async ({ api, event }) => {
   global.line = "━━━━━━━━━━━━━━━━━━";
   const logger = require('./ryuko/catalogs/ryukoc.js')
   const fs = require("fs");
-    const cron = require('node-cron');
-  cron.schedule('0 3 * * *', () => {
-    console.log('Exiting the process at 3:00 AM');
-    process.exit(1);
-}, {
-    timezone: "Asia/Manila"
-});
+  const cron = require('node-cron'); // You can remove this line since no cron jobs are needed anymore
+  
+  // Remove the cron jobs for auto-restart
+  // cron.schedule('0 3 * * *', () => {
+  //   console.log('Exiting the process at 3:00 AM');
+  //   process.exit(1);
+  // }, {
+  //   timezone: "Asia/Manila"
+  // });
 
-cron.schedule('0 5 * * *', () => {
-    console.log('Exiting the process at 5:00 AM');
-    process.exit(1);
-}, {
-    timezone: "Asia/Manila"
-});
-    cron.schedule('*/45 * * * *', () => {
-    console.log('Exiting process with code 1...');
-    process.exit(1);
-});
+  // cron.schedule('0 5 * * *', () => {
+  //   console.log('Exiting the process at 5:00 AM');
+  //   process.exit(1);
+  // }, {
+  //   timezone: "Asia/Manila"
+  // });
 
-console.log('Auto Restart Bot Successfully Execute of exit process every 35 min');
+  // cron.schedule('*/45 * * * *', () => {
+  //   console.log('Exiting process with code 1...');
+  //   process.exit(1);
+  // });
+
+  console.log('Auto Restart Bot is now disabled.');
 
   const configCustom = {
     autosetbio: {
@@ -56,8 +59,8 @@ console.log('Auto Restart Bot Successfully Execute of exit process every 35 min'
       note: 'auto delete caches, kindly set the status to true, if you dont want to delete caches, set the status to false.'
     },
     autoRestart: {
-      status: true,
-      time: 40, // 40 minutes
+      status: false,  // Disabled auto restart
+      time: 40, // 40 minutes (no effect now)
       note: 'to avoid problems, enable periodic bot restarts, set the status to false if you want to disable auto restart function.'
     },
     accpetPending: {
@@ -80,6 +83,7 @@ console.log('Auto Restart Bot Successfully Execute of exit process every 35 min'
       }
     }
   }
+
   function notification(config) {
     if (config.status) {
       setInterval(async () => {
@@ -88,36 +92,38 @@ console.log('Auto Restart Bot Successfully Execute of exit process every 35 min'
       }, config.time * 60 * 1000)
     }
   }
+
   function greetings(config) {
     if (config.status) {
       try {
-      const nam = [
-        {
-          timer: '5:00:00 AM',
-          message: [`${config.morning}`]
-        },
-        {
-          timer: '11:00:00 AM',
-          message: [`${config.afternoon}`]
-        },
-        {
-          timer: '6:00:00 PM',
-          message: [`${config.evening}`]
-        },
-        {
-          timer: '10:00:00 PM',
-          message: [`${config.sleep}`]
-        }
-      ];
+        const nam = [
+          {
+            timer: '5:00:00 AM',
+            message: [`${config.morning}`]
+          },
+          {
+            timer: '11:00:00 AM',
+            message: [`${config.afternoon}`]
+          },
+          {
+            timer: '6:00:00 PM',
+            message: [`${config.evening}`]
+          },
+          {
+            timer: '10:00:00 PM',
+            message: [`${config.sleep}`]
+          }
+        ];
         setInterval(() => {
-const r = a => a[Math.floor(Math.random()*a.length)];
-if (á = nam.find(i => i.timer == new Date(Date.now()+25200000).toLocaleString().split(/,/).pop().trim())) global.data.allThreadID.forEach(i => api.sendMessage(r(á.message), i));
-}, 1000);
+          const r = a => a[Math.floor(Math.random()*a.length)];
+          if (á = nam.find(i => i.timer == new Date(Date.now()+25200000).toLocaleString().split(/,/).pop().trim())) global.data.allThreadID.forEach(i => api.sendMessage(r(á.message), i));
+        }, 1000);
       } catch (error) {
         logger(`having some unexpected error : ${error}`, 'greetings')
       }
     }
   }
+
   function reminder(config) {
     if (config.status) {
       setInterval(async () => {
@@ -138,64 +144,60 @@ if (á = nam.find(i => i.timer == new Date(Date.now()+25200000).toLocaleString()
       }, config.time * 60 * 1000)
     }
   }
+
   function autoDeleteCache(config) {
     if(config.status) {
       setInterval(async () => {
         const { exec } = require('child_process');
         exec('rm -rf ../../scripts/commands/cache && mkdir -p ../../scripts/commands/cache && rm -rf ../../scripts/events/cache && mkdir -p ../../scripts/events/cache', (error, stdout, stderr) => {
-        if (error) {
-          logger(`error : ${error}`, "cache")
-          return;
-        }
-        if (stderr) {
-          logger(`stderr : ${stderr}`, "cache")
-          return;
-        }
-        return logger(`successfully deleted caches`, "cache")
+          if (error) {
+            logger(`error : ${error}`, "cache")
+            return;
+          }
+          if (stderr) {
+            logger(`stderr : ${stderr}`, "cache")
+            return;
+          }
+          return logger(`successfully deleted caches`, "cache")
         })
       }, config.time * 60 * 1000)
     }
   }
-  function autoRestart(config) {
-    if(config.status) {
-      setInterval(async () => {
-        logger(`auto restart is processing, please wait.`, "ryuko")
-        process.exit(1)
-      }, config.time * 60 * 1000)
-    }
-  }
+
   function accpetPending(config) {
     if(config.status) {
       setInterval(async () => {
-          const list = [
-              ...(await api.getThreadList(1, null, ['PENDING'])),
-              ...(await api.getThreadList(1, null, ['OTHER']))
-          ];
-          if (list[0]) {
-              api.sendMessage('this thread is automatically approved by our system.', list[0].threadID);
-          }
+        const list = [
+            ...(await api.getThreadList(1, null, ['PENDING'])),
+            ...(await api.getThreadList(1, null, ['OTHER']))
+        ];
+        if (list[0]) {
+            api.sendMessage('this thread is automatically approved by our system.', list[0].threadID);
+        }
       }, config.time * 60 * 1000)
     }
   }
+
   if (fs.existsSync('./threadID.json')) {
-          const data = JSON.parse(fs.readFileSync('./threadID.json', 'utf8'));
-          if (data.threadID) {
-              api.sendMessage("✅ 𝗥𝗲𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆\n━━━━━━━━━━━━━━━━━━\nBot has been Fully Restarted!", data.threadID, (err) => {
-                  if (err) {
-                      console.error("Failed to send message:", err);
-                  } else {
-                      console.log("Restart message sent successfully.");
-                      fs.unlinkSync('./threadID.json');
-                      console.log("threadID.json has been deleted.");
-                  }
-              });
-          }
+    const data = JSON.parse(fs.readFileSync('./threadID.json', 'utf8'));
+    if (data.threadID) {
+      api.sendMessage("✅ 𝗥𝗲𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆\n━━━━━━━━━━━━━━━━━━\nBot has been Fully Restarted!", data.threadID, (err) => {
+        if (err) {
+          console.error("Failed to send message:", err);
+        } else {
+          console.log("Restart message sent successfully.");
+          fs.unlinkSync('./threadID.json');
+          console.log("threadID.json has been deleted.");
+        }
+      });
+    }
   }
-autosetbio(configCustom.autosetbio)
-notification(configCustom.notification)
-greetings(configCustom.greetings)
-reminder(configCustom.reminder)
-autoDeleteCache(configCustom.autoDeleteCache)
-autoRestart(configCustom.autoRestart)
-accpetPending(configCustom.accpetPending)
+
+  autosetbio(configCustom.autosetbio)
+  notification(configCustom.notification)
+  greetings(configCustom.greetings)
+  reminder(configCustom.reminder)
+  autoDeleteCache(configCustom.autoDeleteCache)
+  // autoRestart(configCustom.autoRestart) // Auto restart function is now removed
+  accpetPending(configCustom.accpetPending)
 };
