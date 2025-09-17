@@ -1,7 +1,7 @@
 module.exports.config = {
   name: "help",
   version: "1.0.0",
-  hasPermssion: 0,
+  hasPermission: 0,
   credits: "august",
   description: "Guide for new users",
   category: "system",
@@ -19,41 +19,8 @@ const mathSansBold = {
   s: "𝘀", t: "𝘁", u: "𝘂", v: "𝘃", w: "𝘄", x: "𝘅", y: "𝘆", z: "𝘇"
 };
 
-module.exports.handleEvent = function ({ api, event, getText }) {
-  const { commands } = global.client;
-  const { threadID, messageID, body } = event;
-
-  if (!body || typeof body !== "string" || !body.includes("commands")) return;
-
-  const splitBody = body.slice(body.indexOf("commands")).trim().split(/\s+/);
-  if (splitBody.length < 2 || !commands.has(splitBody[1].toLowerCase())) return;
-
-  const threadSetting = global.data.threadData.get(parseInt(threadID)) || {};
-  const command = commands.get(splitBody[1].toLowerCase());
-  const prefix = threadSetting.hasOwnProperty("PREFIX") ? threadSetting.PREFIX : global.config.PREFIX;
-
-  return api.sendMessage(
-    getText(
-      "moduleInfo",
-      command.config.name,
-      command.config.description,
-      `${prefix}${command.config.name} ${command.config.usages || ""}`,
-      command.config.category,
-      command.config.cooldowns,
-      command.config.hasPermission === 0
-        ? getText("user")
-        : command.config.hasPermission === 1
-        ? getText("adminGroup")
-        : getText("adminBot"),
-      command.config.credits
-    ),
-    threadID,
-    messageID
-  );
-};
-
 module.exports.run = async function ({ api, event, args }) {
-  const uid = event.senderID;
+  const uid = event.senderID;  // Get the sender's UID
   const userName = (await api.getUserInfo(uid))[uid].name;
 
   const { commands } = global.client;
@@ -82,7 +49,14 @@ module.exports.run = async function ({ api, event, args }) {
     msg += "\n╰───────────⟡\n";
   }
 
-  msg += `├─────☾⋆\n│ » Total commands: [ ${commands.size} ]\n│「 ☾⋆ PREFIX: ${global.config.PREFIX} 」\n╰──────────⧕\n\nOwner: ${global.config.BOTOWNER}`;
+  msg += `├─────☾⋆\n│ » Total commands: [ ${commands.size} ]\n│「 ☾⋆ PREFIX: ${global.config.PREFIX} 」\n╰──────────⧕\n\n`;
 
-  return api.shareContact(msg, api.getCurrentUserID(), event.threadID);
+  // Adding YOUR UID and profile link to the message
+  const yourUID = '61559999326713';  // Set your UID here
+  msg += `Owner: Jaylord La Peña\nProfile: https://www.facebook.com/${yourUID}\nUID: ${yourUID}`;
+
+  // Share YOUR profile using your UID
+  api.shareContact(yourUID, event.senderID, event.threadID);
+
+  return api.sendMessage(msg, threadID, messageID);
 };
