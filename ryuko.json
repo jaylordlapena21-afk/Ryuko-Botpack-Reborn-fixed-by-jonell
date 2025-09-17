@@ -5,14 +5,14 @@
     "notification": true,
     "approval": true,
     "premium": false,
-    "BOTNAME": "",
-    "BOTOWNER": "",
-    "PREFIX": "!",
+    "BOTNAME": "Tech Bot",
+    "BOTOWNER": "Jaylord La Peña",
+    "PREFIX": "/",
     "OPERATOR": [
-        ""
+        "61559999326713"
     ],
     "ADMINBOT": [
-        ""
+        "61559999326713"
     ],
     "disabledcmds": [],
     "disabledevents": [],
