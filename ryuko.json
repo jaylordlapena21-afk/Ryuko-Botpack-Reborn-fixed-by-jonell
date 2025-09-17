@@ -5,7 +5,7 @@
     "notification": true,
     "approval": true,
     "premium": false,
-    "BOTNAME": "Tech Bot",
+    "BOTNAME": "TechBot",
     "BOTOWNER": "Jaylord La Peña",
     "PREFIX": "/",
     "OPERATOR": [
