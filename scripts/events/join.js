@@ -1,39 +1,99 @@
-const fs = require("fs");
-const moment = require("moment");
-
 module.exports.config = {
-		name: "join",
-		eventType: ['log:subscribe'],
-		version: "1.0.0",
-		credits: "Mirai-Team And Modify By Jonell Magallanes",
-		description: "GROUP UPDATE NOTIFICATION"
+  name: "joinNoti",
+  eventType: ["log:subscribe"],
+  version: "1.2.3",
+  credits: "Kim Joseph DG Bien (updated by ChatGPT)",
+  description: "Join Notification with API-generated welcome photo",
+  dependencies: {
+    "fs-extra": "",
+    "request": ""
+  }
 };
 
-module.exports.run = async function ({ api, event, Users, Threads }) {
-		if (event.logMessageData.addedParticipants.some(i => i.userFbId == api.getCurrentUserID())) {
-				api.changeNickname(`${global.config.BOTNAME} • [ ${global.config.PREFIX} ]`, event.threadID, api.getCurrentUserID());
-				api.shareContact(`✅ 𝗕𝗼𝘁 𝗖𝗼𝗻𝗻𝗲𝗰𝘁𝗲𝗱\n━━━━━━━━━━━━━━━━━━\n${global.config.BOTNAME} connected successfully!\nType "${global.config.PREFIX}help" to view all commands\n\nContact the admin if you encounter an error.\n\n👷Developer: ${global.config.BOTOWNER}`, api.getCurrentUserID(), event.threadID);
-				return;
-		}
+module.exports.run = async function ({ api, event }) {
+  const request = require("request");
+  const fs = global.nodemodule["fs-extra"];
+  const path = require("path");
 
-		try {
-				const { threadID } = event;
-				let { threadName, participantIDs } = await api.getThreadInfo(threadID);
-				var tn = threadName || "Unnamed group";
-				let addedParticipants = event.logMessageData.addedParticipants;
+  const { threadID, logMessageData } = event;
+  const addedParticipants = logMessageData.addedParticipants;
 
-				for (let newParticipant of addedParticipants) {
-						let userID = newParticipant.userFbId;
-						api.getUserInfo(parseInt(userID), (err, data) => {
-								if (err) return;
-								let userName = data[Object.keys(data)].name.replace("@", "");
-								if (userID !== api.getCurrentUserID()) {
-										let welcomeText = `Hello ${userName}!\nWelcome to ${tn}\nYou're the ${participantIDs.length}th member in this group. Enjoy!`;
-										api.shareContact(welcomeText, newParticipant.userFbId, event.threadID);
-								}
-						});
-				}
-		} catch (err) {
-				console.log("ERROR: " + err);
-		}
+  // ✅ If bot was added
+  if (addedParticipants.some(i => i.userFbId == api.getCurrentUserID())) {
+    api.changeNickname(
+      `𝗕𝗢𝗧 ${global.config.BOTNAME} 【 ${global.config.PREFIX} 】`,
+      threadID,
+      api.getCurrentUserID()
+    );
+    return api.sendMessage(
+      `BOT CONNECTED!!\n\nThank you for using my BOT\nUse ${global.config.PREFIX}help to see other commands\n\nIf you notice an error in the bot, just report it using: ${global.config.PREFIX}callad or request a command!`,
+      threadID
+    );
+  }
+
+  try {
+    // ✅ Get thread info safely
+    const threadInfo = await api.getThreadInfo(threadID);
+    const threadName = threadInfo.threadName || "this group";
+    const totalMembers = threadInfo.participantIDs?.length || 0;
+
+    for (let newParticipant of addedParticipants) {
+      const userID = newParticipant.userFbId;
+
+      // ✅ Skip kung bot mismo
+      if (userID === api.getCurrentUserID()) continue;
+
+      // ✅ Get user info safely
+      let userName = "Friend";
+      try {
+        const userInfo = await api.getUserInfo(userID);
+        if (userInfo?.[userID]?.name) {
+          userName = userInfo[userID].name;
+        }
+      } catch (e) {
+        console.warn("⚠️ Failed to get user info:", e.message);
+      }
+
+      // ✅ Build welcome message
+      const msg = `Hello ${userName}!\nWelcome to ${threadName}!\nYou're the ${totalMembers}th member in this group, please enjoy!`;
+
+      // ✅ API URL for welcome image
+      const apiUrl = `https://betadash-api-swordslush-production.up.railway.app/welcome?name=${encodeURIComponent(userName)}&userid=${userID}&threadname=${encodeURIComponent(threadName)}&members=${totalMembers}`;
+
+      // ✅ Path for cache image
+      const filePath = path.join(__dirname, "..", "commands", "cache", `welcome_${userID}.png`);
+
+      // auto-create cache folder if not exists
+      if (!fs.existsSync(path.dirname(filePath))) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      }
+
+      // ✅ Callback after download
+      const callback = () => {
+        if (fs.existsSync(filePath)) {
+          api.sendMessage({
+            body: msg,
+            attachment: fs.createReadStream(filePath),
+            mentions: [{ tag: userName, id: userID }]
+          }, threadID, () => fs.unlinkSync(filePath));
+        } else {
+          // Fallback: send text only
+          api.sendMessage(msg, threadID);
+        }
+      };
+
+      console.log(`📥 Generating welcome for ${userName} (${userID})`);
+
+      // ✅ Request image with error handling
+      request(apiUrl)
+        .pipe(fs.createWriteStream(filePath))
+        .on("close", callback)
+        .on("error", (err) => {
+          console.error("❌ Error downloading welcome image:", err.message);
+          api.sendMessage(msg, threadID);
+        });
+    }
+  } catch (err) {
+    console.error("❌ ERROR in joinNoti module:", err);
+  }
 };
