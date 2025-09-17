@@ -5,6 +5,7 @@ module.exports.config = {
   credits: "ChatGPT + Jaylord",
   description: "Bank system with UID checker (auto-update name on /bank)",
   premium: false,
+  prefix: true, 
   category: "economy",
   usages: "bank, bank all, bank add <uid> <amount>",
   cooldowns: 3,
