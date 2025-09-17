@@ -1,7 +1,7 @@
 module.exports.config = {
   name: "petcal",
   version: "2.3.3",
-  hasPermission: 0,
+  permission: 0,
   credits: "ChatGPT",
   description: "Calculate pet weights (Age 1 → Age 100, linear growth up to 10× Age 1)",
   category: "gag tools",
